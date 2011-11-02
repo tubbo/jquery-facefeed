@@ -40,16 +40,28 @@
 	$.fn.faceFeed = function(options) {
 		/**
 		 * Configuration
+		 *
+		 * `pageName:` The name of your Facebook page. Required.
+		 * `tokenGenerator:` Path to a file that will return a JSON access_token. If defined, this will take
+		 *					 priority over `accessToken`.
+		 * `accessToken:` A token you generate at <https://developers.facebook.com/tools/explorer>.
+		 * `dateClass:` The class of the `<span>` that contains your date "ago in words". Default: `post-date`
 		 */
 		var config = {
 			pageName: 	 '',
-			generateToken: false,
+			tokenGenerator: '',	// default: token.php
 			accessToken: '',
 			postsToFetch: 5,
 			dateClass: 'date'
 		};
 		$.fn.extend(config, options);
 		
+		/**
+		 * Implementation of Rails' distance_of_time_in_words with JS.
+		 *
+		 * @param {Date} the date for which you want to calculate the distance
+		 * @return how long ago this message was posted.
+		 */
 		function distanceOfTimeInWords(date) {
 			var relative_to = (arguments.length > 1) ? arguments[1] : new Date();
 			var delta = parseInt((relative_to.getTime() - date) / 1000, 10);
@@ -72,6 +84,12 @@
 			return r;
 	    }
 		
+		/**
+		 * Converts "http://" links into <a> tags.
+		 *
+		 * @param {String} a block of text for which all "http://" links need conversion
+		 * @return {String} the same block of text with URLs re-formatted.
+		 */
 		function linkify(text){
 		    if (text) {
 		        text = text.replace(
@@ -88,18 +106,19 @@
 		    return text;
 		}
 		
-		
-		/*
-		 * Runtime
+		/**
+		 * Requests your page's status feed from the Open Graph and injects it as HTML into the
+		 * element.
+		 *
+		 * @param {String} accessToken - A generated or provided access token for authorizing
+		 * 								 with the API.
 		 */
-		return this.each(function() {
-			var self = $(this);
-			self.html('<p>Loading status updates...</p>');
+		function getPosts(accessToken, self) {
 			$.ajax({
 				url: 'https://graph.facebook.com/'+config.pageName+'/statuses',
 				type: 'GET',
 				data: {
-					access_token: ACCESS_TOKEN,
+					access_token: accessToken,
 					limit: config.postsToFetch
 				},
 				dataType: 'json',
@@ -109,15 +128,36 @@
 						var status = response.data[c];
 						var lastUpdated = new Date(status.updated_time.split('+0000').join(''));
 						var timeAgoInWords = distanceOfTimeInWords(lastUpdated);
-						
+
 						var txt = linkify(status.message)+'<br>'+'<span class="'+config.dateClass+'"><a href="http://www.facebook.com/'+config.pageName+'/posts/'+status.id+'">'+timeAgoInWords+'</a></span>';
-						
+
 						var row = $('<p></p>').html(txt);
 						self.append(row);
 					}
 				}
-			})
-
+			});
+		}
+		
+		
+		/*
+		 * Runtime.
+		 */
+		return this.each(function() {
+			var self = $(this);
+			self.html('<p>Loading status updates...</p>');
+			
+			if (config.tokenGenerator) {
+				$.ajax({
+					url: config.tokenGenerator,
+					type: 'GET',
+					dataType: 'json',
+					success: function(generator) {
+						getPosts(generator.access_token, self);
+					}
+				})
+			} else {
+				getPosts(config.accessToken, self);
+			}
 		});
 	};
 })(jQuery)
