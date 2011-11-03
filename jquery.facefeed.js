@@ -1,4 +1,4 @@
-/**
+	/**
  * jQuery.faceFeed
  * ===============
  *
@@ -115,7 +115,7 @@
 		 */
 		function getPosts(accessToken, self) {
 			$.ajax({
-				url: 'https://graph.facebook.com/'+config.pageName+'/statuses',
+				url: 'https://graph.facebook.com/'+config.pageName+'/feed',
 				type: 'GET',
 				data: {
 					access_token: accessToken,
@@ -128,8 +128,9 @@
 						var status = response.data[c];
 						var lastUpdated = new Date(status.updated_time.split('+0000').join(''));
 						var timeAgoInWords = distanceOfTimeInWords(lastUpdated);
-
-						var txt = linkify(status.message)+'<br>'+'<span class="'+config.dateClass+'"><a href="http://www.facebook.com/'+config.pageName+'/posts/'+status.id+'">'+timeAgoInWords+'</a></span>';
+						var statusMessage = (status.message) ? status.message : status.story;
+						
+						var txt = linkify(statusMessage)+'<br>'+'<span class="'+config.dateClass+'"><a href="http://www.facebook.com/'+config.pageName+'/posts/'+status.id+'">'+timeAgoInWords+'</a></span>';
 
 						var row = $('<p></p>').html(txt);
 						self.append(row);
